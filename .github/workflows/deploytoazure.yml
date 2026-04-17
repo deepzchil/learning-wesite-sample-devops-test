@@ -1,66 +1,101 @@
-name: CI/CD Deploy Static Website to Azure with Manager Approval
+name: Enterprise CI/CD Static Website to Azure (MNC Standard)
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
+# -------------------------------------------------
+# GLOBAL VARIABLES
+# -------------------------------------------------
 env:
   AZURE_WEBAPP_NAME: indradeep
-  AZURE_WEBAPP_PACKAGE_PATH: .
   NODE_VERSION: '24'
+  PACKAGE_NAME: release.zip
   MANAGER_EMAIL: indradeep.ch12@gmail.com
   MANAGER_NAME: ${{ vars.MANAGER_NAME }}
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
 
 jobs:
 
-# -------------------------------------------------
-# JOB 1 - BUILD WEBSITE
-# -------------------------------------------------
+# =================================================
+# JOB 1 - BUILD + VALIDATION + CHANGE SUMMARY
+# =================================================
   build:
+    name: Build Website Package
     runs-on: ubuntu-latest
+    outputs:
+      commit_message: ${{ steps.commit.outputs.msg }}
+      changed_files: ${{ steps.changes.outputs.files }}
 
     steps:
-      # Download source code from GitHub repo
+      # Checkout full repo for git diff
       - name: Checkout Repository
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
 
-      # Install Node.js (optional for JS projects)
+      # Install Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      # Validate required files exist
-      - name: Check Files
+      # Capture Commit Message
+      - name: Read Commit Message
+        id: commit
         run: |
-          echo "Checking website files..."
+          echo "msg=$(git log -1 --pretty=%B | tr '\n' ' ')" >> $GITHUB_OUTPUT
+
+      # Capture Exact Changed Files
+      - name: Detect Code Changes
+        id: changes
+        run: |
+          echo "FILES_CHANGED<<EOF" >> $GITHUB_ENV
+          git diff --name-only HEAD~1 HEAD >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+          echo "files<<EOF" >> $GITHUB_OUTPUT
+          git diff --name-only HEAD~1 HEAD >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      # Validate mandatory files
+      - name: Validate Website Files
+        run: |
           test -f index.html
           test -f css/style.css
           test -f js/script.js
-          echo "All files found."
 
-      # Create deployment package
-      - name: Archive Website Files
-        run: zip -r release.zip ./*
+      # Create deploy package
+      - name: Archive Files
+        run: zip -r ${{ env.PACKAGE_NAME }} ./*
 
-      # Upload build artifact
+      # Upload artifact
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: website-build
-          path: release.zip
+          path: ${{ env.PACKAGE_NAME }}
 
-# -------------------------------------------------
-# JOB 2 - SEND EMAIL TO MANAGER
-# -------------------------------------------------
-  send-approval-mail:
+# =================================================
+# JOB 2 - EMAIL APPROVAL REQUEST WITH CHANGES
+# =================================================
+  approval-mail:
+    name: Send Approval Email
     needs: build
     runs-on: ubuntu-latest
 
     steps:
-      - name: Send Approval Email
+      - name: Send Email
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
@@ -69,69 +104,63 @@ jobs:
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
 
-          subject: Approval Required – Azure Production Deployment
+          subject: Production Deployment Approval Required | ${{ github.repository }}
 
           to: ${{ env.MANAGER_EMAIL }}
           from: ${{ secrets.MAIL_USERNAME }}
 
-          body: |
-            Dear ${{ env.MANAGER_NAME }},
+          html_body: |
+            <h2>Dear ${{ env.MANAGER_NAME }},</h2>
 
-            This is to inform you that the latest build for the Static Website project has been completed successfully and is ready for Production Deployment.
+            <p>The latest production build has completed successfully and is awaiting approval.</p>
 
-            --------------------------------------------------
-            Deployment Details:
-            --------------------------------------------------
-            • Repository Name      : ${{ github.repository }}
-            • Branch Name          : ${{ github.ref_name }}
-            • Build Status         : SUCCESS
-            • Triggered By         : ${{ github.actor }}
-            • Commit ID            : ${{ github.sha }}
-            • Build Date & Time    : ${{ github.event.head_commit.timestamp }}
+            <h3>Deployment Summary</h3>
+            <table border="1" cellpadding="8" cellspacing="0">
+              <tr><td><b>Repository</b></td><td>${{ github.repository }}</td></tr>
+              <tr><td><b>Branch</b></td><td>${{ github.ref_name }}</td></tr>
+              <tr><td><b>Triggered By</b></td><td>${{ github.actor }}</td></tr>
+              <tr><td><b>Build Status</b></td><td>SUCCESS</td></tr>
+              <tr><td><b>Commit ID</b></td><td>${{ github.sha }}</td></tr>
+              <tr><td><b>Commit Message</b></td><td>${{ needs.build.outputs.commit_message }}</td></tr>
+            </table>
 
-            --------------------------------------------------
-            Latest Code Changes Included in this Push:
-            --------------------------------------------------
-            • Commit Message:
-              ${{ github.event.head_commit.message }}
+            <h3>Exact Code Changes</h3>
+            <pre>${{ needs.build.outputs.changed_files }}</pre>
 
-            --------------------------------------------------
-            Action Required:
-            --------------------------------------------------
-            Kindly review and approve the Production Deployment in GitHub:
+            <h3>Action Required</h3>
+            <p>Please approve deployment from GitHub:</p>
 
-            GitHub Repository
-            → Actions
-            → Latest Workflow Run
-            → Review Deployments
-            → Approve and Deploy
+            <p>
+            Repository → Actions → Latest Run → Review Deployments → Approve
+            </p>
 
-            Production URL:
-            https://indradeep.azurewebsites.net
+            <h3>Production URL</h3>
+            <p>https://indradeep.azurewebsites.net</p>
 
-            Regards,
-            DevOps Automation Pipeline
+            <br>
+            Regards,<br>
+            DevOps CI/CD Automation
 
-# -------------------------------------------------
-# JOB 3 - MANAGER APPROVAL
-# -------------------------------------------------
+# =================================================
+# JOB 3 - MANUAL APPROVAL
+# =================================================
   approval:
-    needs: send-approval-mail
+    name: Production Approval
+    needs: approval-mail
     runs-on: ubuntu-latest
+
     environment:
       name: production
       url: https://indradeep.azurewebsites.net
 
     steps:
-      - name: Waiting for Manager Approval
-        run: echo "Deployment waiting for approval..."
+      - run: echo "Waiting for manager approval..."
 
-# -------------------------------------------------
-# JOB 4 - DEPLOY TO AZURE (FIXED ERROR)
-# Paste this INSIDE jobs:
-# -------------------------------------------------
-
+# =================================================
+# JOB 4 - DEPLOY TO AZURE
+# =================================================
   deploy:
+    name: Deploy to Azure Production
     needs: approval
     runs-on: ubuntu-latest
 
@@ -139,31 +168,61 @@ jobs:
       name: production
 
     steps:
-      - name: Download Build Artifact
+      - name: Download Artifact
         uses: actions/download-artifact@v4
         with:
           name: website-build
           path: ./artifact
 
-      - name: Extract ZIP Package
+      - name: Extract Artifact
         run: |
           cd artifact
           unzip -o release.zip
-          ls -la
 
       - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Deploy to Azure Web App
+      - name: Deploy Website
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           package: ./artifact
 
-      - name: Logout Azure
+      - name: Azure Logout
         run: az logout
 
-      - name: Deployment Success
-        run: echo "Website deployed successfully to Azure Production"
+# =================================================
+# JOB 5 - POST DEPLOYMENT EMAIL
+# =================================================
+  success-mail:
+    name: Send Success Email
+    needs: deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send Success Mail
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          secure: false
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+
+          subject: Production Deployment Successful | ${{ github.repository }}
+
+          to: ${{ env.MANAGER_EMAIL }}
+          from: ${{ secrets.MAIL_USERNAME }}
+
+          body: |
+            Dear ${{ env.MANAGER_NAME }},
+
+            Production deployment completed successfully.
+
+            Website URL:
+            https://indradeep.azurewebsites.net
+
+            Regards,
+            DevOps Automation Team
