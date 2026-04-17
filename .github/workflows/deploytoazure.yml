@@ -10,6 +10,7 @@ env:
   AZURE_WEBAPP_PACKAGE_PATH: .
   NODE_VERSION: '24'
   MANAGER_EMAIL: indradeep.ch12@gmail.com
+  MANAGER_NAME: ${{ vars.MANAGER_NAME }}
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
@@ -54,33 +55,62 @@ jobs:
 # -------------------------------------------------
 # JOB 2 - SEND EMAIL TO MANAGER
 # -------------------------------------------------
-  send-approval-mail:
-    needs: build
-    runs-on: ubuntu-latest
+send-approval-mail:
+  needs: build
+  runs-on: ubuntu-latest
 
-    steps:
-      - name: Send Approval Email
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 587
-          secure: false
-          username: ${{ secrets.MAIL_USERNAME }}
-          password: ${{ secrets.MAIL_PASSWORD }}
-          subject: Approval Required for Azure Production Deployment
-          to: ${{ env.MANAGER_EMAIL }}
-          from: ${{ secrets.MAIL_USERNAME }}
-          body: |
-            Hello Manager,
+  steps:
+    - name: Send Approval Email
+      uses: dawidd6/action-send-mail@v3
+      with:
+        server_address: smtp.gmail.com
+        server_port: 587
+        secure: false
+        username: ${{ secrets.MAIL_USERNAME }}
+        password: ${{ secrets.MAIL_PASSWORD }}
 
-            Build completed successfully.
+        subject: Approval Required – Azure Production Deployment
 
-            Please approve deployment in GitHub:
+        to: ${{ env.MANAGER_EMAIL }}
+        from: ${{ secrets.MAIL_USERNAME }}
 
-            Repo → Actions → Workflow Run → Review Deployments
+        body: |
+          Dear ${{ env.MANAGER_NAME }},
 
-            Regards,
-            DevOps Pipeline
+          This is to inform you that the latest build for the Static Website project has been completed successfully and is ready for Production Deployment.
+
+          --------------------------------------------------
+          Deployment Details:
+          --------------------------------------------------
+          • Repository Name      : ${{ github.repository }}
+          • Branch Name          : ${{ github.ref_name }}
+          • Build Status         : SUCCESS
+          • Triggered By         : ${{ github.actor }}
+          • Commit ID            : ${{ github.sha }}
+          • Build Date & Time    : ${{ github.event.head_commit.timestamp }}
+
+          --------------------------------------------------
+          Latest Code Changes Included in this Push:
+          --------------------------------------------------
+          • Commit Message:
+            ${{ github.event.head_commit.message }}
+
+          --------------------------------------------------
+          Action Required:
+          --------------------------------------------------
+          Kindly review and approve the Production Deployment in GitHub:
+
+          GitHub Repository
+          → Actions
+          → Latest Workflow Run
+          → Review Deployments
+          → Approve and Deploy
+
+          Production URL:
+          https://dnmgithubactions.azurewebsites.net
+
+          Regards,
+          DevOps Automation Pipeline
 
 # -------------------------------------------------
 # JOB 3 - MANAGER APPROVAL
