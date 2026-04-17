@@ -6,7 +6,7 @@ on:
       - main
 
 env:
-  AZURE_WEBAPP_NAME: dnmgithubactions
+  AZURE_WEBAPP_NAME: indradeep
   AZURE_WEBAPP_PACKAGE_PATH: .
   NODE_VERSION: '24'
   MANAGER_EMAIL: indradeep.ch12@gmail.com
@@ -107,7 +107,7 @@ jobs:
             → Approve and Deploy
 
             Production URL:
-            https://dnmgithubactions.azurewebsites.net
+            https://indradeep.azurewebsites.net
 
             Regards,
             DevOps Automation Pipeline
@@ -120,7 +120,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production
-      url: https://dnmgithubactions.azurewebsites.net
+      url: https://indradeep.azurewebsites.net
 
     steps:
       - name: Waiting for Manager Approval
