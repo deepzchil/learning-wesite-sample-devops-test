@@ -281,7 +281,7 @@ jobs:
 # =================================================
   success-mail:
     name: Send Success Email
-    needs: deploy
+    needs: [deploy, build]
     runs-on: ubuntu-latest
 
     steps:
@@ -296,151 +296,145 @@ jobs:
 
           subject: Production Deployment Successful | ${{ github.repository }}
 
-to: ${{ env.MANAGER_EMAIL }}
-from: ${{ secrets.MAIL_USERNAME }}
+          to: ${{ env.MANAGER_EMAIL }}
+          from: ${{ secrets.MAIL_USERNAME }}
 
-html_body: |
-  <html>
-  <body style="font-family:Arial, Helvetica, sans-serif; color:#333333; line-height:1.6; margin:0; padding:0;">
+          html_body: |
+            <html>
+            <body style="font-family:Arial, Helvetica, sans-serif; color:#333333; line-height:1.6; margin:0; padding:0;">
 
-    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8; padding:30px;">
-      <tr>
-        <td align="center">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8; padding:30px;">
+                <tr>
+                  <td align="center">
 
-          <table width="800" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:8px; padding:30px; box-shadow:0 0 10px rgba(0,0,0,0.08);">
+                    <table width="800" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:8px; padding:30px; box-shadow:0 0 10px rgba(0,0,0,0.08);">
 
-            <tr>
-              <td>
+                      <tr>
+                        <td>
 
-                <h2 style="color:#198754; margin-top:0;">
-                  Production Deployment Completed Successfully
-                </h2>
+                          <h2 style="color:#198754; margin-top:0;">
+                            Production Deployment Completed Successfully
+                          </h2>
 
-                <p>Dear <b>${{ env.MANAGER_NAME }}</b>,</p>
+                          <p>Dear <b>${{ env.MANAGER_NAME }}</b>,</p>
 
-                <p>
-                  We are pleased to inform you that the approved production deployment for 
-                  <b>${{ github.repository }}</b> has been executed successfully through the automated CI/CD release pipeline.
-                </p>
+                          <p>
+                            We are pleased to inform you that the approved production deployment for
+                            <b>${{ github.repository }}</b> has been executed successfully through the automated CI/CD release pipeline.
+                          </p>
 
-                <p>
-                  The latest validated application build is now live in the Production environment and available for end users.
-                </p>
+                          <p>
+                            The latest validated application build is now live in the Production environment and available for end users.
+                          </p>
 
-                <hr style="border:0; border-top:1px solid #dddddd;">
+                          <hr style="border:0; border-top:1px solid #dddddd;">
 
-                <h3 style="color:#198754;">Deployment Overview</h3>
+                          <h3 style="color:#198754;">Deployment Overview</h3>
 
-                <table width="100%" border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse; font-size:14px;">
-                  <tr>
-                    <td><b>Application Name</b></td>
-                    <td>${{ github.repository }}</td>
-                  </tr>
-                  <tr>
-                    <td><b>Branch Released</b></td>
-                    <td>${{ github.ref_name }}</td>
-                  </tr>
-                  <tr>
-                    <td><b>Environment</b></td>
-                    <td>Production</td>
-                  </tr>
-                  <tr>
-                    <td><b>Deployment Status</b></td>
-                    <td style="color:green;"><b>SUCCESSFUL</b></td>
-                  </tr>
-                  <tr>
-                    <td><b>Approved By</b></td>
-                    <td>${{ env.MANAGER_NAME }}</td>
-                  </tr>
-                  <tr>
-                    <td><b>Executed By</b></td>
-                    <td>${{ github.actor }}</td>
-                  </tr>
-                  <tr>
-                    <td><b>Commit ID</b></td>
-                    <td>${{ github.sha }}</td>
-                  </tr>
-                  <tr>
-                    <td><b>Commit Description</b></td>
-                    <td>${{ needs.build.outputs.commit_message }}</td>
-                  </tr>
-                </table>
+                          <table width="100%" border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse; font-size:14px;">
+                            <tr>
+                              <td><b>Application Name</b></td>
+                              <td>${{ github.repository }}</td>
+                            </tr>
+                            <tr>
+                              <td><b>Branch Released</b></td>
+                              <td>${{ github.ref_name }}</td>
+                            </tr>
+                            <tr>
+                              <td><b>Environment</b></td>
+                              <td>Production</td>
+                            </tr>
+                            <tr>
+                              <td><b>Deployment Status</b></td>
+                              <td style="color:green;"><b>SUCCESSFUL</b></td>
+                            </tr>
+                            <tr>
+                              <td><b>Approved By</b></td>
+                              <td>${{ env.MANAGER_NAME }}</td>
+                            </tr>
+                            <tr>
+                              <td><b>Executed By</b></td>
+                              <td>${{ github.actor }}</td>
+                            </tr>
+                            <tr>
+                              <td><b>Commit ID</b></td>
+                              <td>${{ github.sha }}</td>
+                            </tr>
+                            <tr>
+                              <td><b>Commit Description</b></td>
+                              <td>${{ needs.build.outputs.commit_message }}</td>
+                            </tr>
+                          </table>
 
-                <br>
+                          <br>
 
-                <h3 style="color:#198754;">Changes Released to Production</h3>
+                          <h3 style="color:#198754;">Changes Released to Production</h3>
 
-                <p>
-                  Below are the exact source files modified in this deployment:
-                </p>
+                          <p>
+                            Below are the exact source files modified in this deployment:
+                          </p>
 
-                <pre style="
-                  background:#f8f9fa;
-                  padding:14px;
-                  border:1px solid #dddddd;
-                  border-radius:6px;
-                  font-size:13px;
-                  overflow:auto;">${{ needs.build.outputs.changed_files }}</pre>
+                          <pre style="background:#f8f9fa; padding:14px; border:1px solid #dddddd; border-radius:6px; font-size:13px; overflow:auto;">${{ needs.build.outputs.changed_files }}</pre>
 
-                <h3 style="color:#198754;">Release Validation Summary</h3>
+                          <h3 style="color:#198754;">Release Validation Summary</h3>
 
-                <ul>
-                  <li>Build package generated successfully.</li>
-                  <li>Artifact integrity verified before deployment.</li>
-                  <li>Azure Web App updated with latest release package.</li>
-                  <li>Deployment completed without pipeline errors.</li>
-                  <li>Production instance is operational and accessible.</li>
-                </ul>
+                          <ul>
+                            <li>Build package generated successfully.</li>
+                            <li>Artifact integrity verified before deployment.</li>
+                            <li>Azure Web App updated with latest release package.</li>
+                            <li>Deployment completed without pipeline errors.</li>
+                            <li>Production instance is operational and accessible.</li>
+                          </ul>
 
-                <h3 style="color:#198754;">Business Impact</h3>
+                          <h3 style="color:#198754;">Business Impact</h3>
 
-                <p>
-                  All approved enhancements, fixes, and UI/code changes from this release are now active in Production.
-                  This deployment was completed through the standardized release governance process.
-                </p>
+                          <p>
+                            All approved enhancements, fixes, and UI/code changes from this release are now active in Production.
+                            This deployment was completed through the standardized release governance process.
+                          </p>
 
-                <h3 style="color:#198754;">Production URL</h3>
+                          <h3 style="color:#198754;">Production URL</h3>
 
-                <p>
-                  <a href="https://indradeep.azurewebsites.net" style="color:#0d6efd;">
-                    https://indradeep.azurewebsites.net
-                  </a>
-                </p>
+                          <p>
+                            <a href="https://indradeep.azurewebsites.net" style="color:#0d6efd;">
+                              https://indradeep.azurewebsites.net
+                            </a>
+                          </p>
 
-                <h3 style="color:#198754;">Recommended Next Steps</h3>
+                          <h3 style="color:#198754;">Recommended Next Steps</h3>
 
-                <ol>
-                  <li>Perform quick functional validation on Production.</li>
-                  <li>Confirm business-critical pages are accessible.</li>
-                  <li>Share approval for closure if no issues are identified.</li>
-                </ol>
+                          <ol>
+                            <li>Perform quick functional validation on Production.</li>
+                            <li>Confirm business-critical pages are accessible.</li>
+                            <li>Share approval for closure if no issues are identified.</li>
+                          </ol>
 
-                <hr style="border:0; border-top:1px solid #dddddd;">
+                          <hr style="border:0; border-top:1px solid #dddddd;">
 
-                <p>
-                  Thank you for your approval and continued support of the controlled deployment process.
-                </p>
+                          <p>
+                            Thank you for your approval and continued support of the controlled deployment process.
+                          </p>
 
-                <p>
-                  Should any immediate rollback, hotfix, or production support be required, the DevOps team is available to assist.
-                </p>
+                          <p>
+                            Should any immediate rollback, hotfix, or production support be required, the DevOps team is available to assist.
+                          </p>
 
-                <br>
+                          <br>
 
-                <p>
-                  Regards,<br>
-                  <b>DevOps Automation Team</b><br>
-                  Enterprise CI/CD Release Management
-                </p>
+                          <p>
+                            Regards,<br>
+                            <b>DevOps Automation Team</b><br>
+                            Enterprise CI/CD Release Management
+                          </p>
 
-              </td>
-            </tr>
+                        </td>
+                      </tr>
 
-          </table>
+                    </table>
 
-        </td>
-      </tr>
-    </table>
+                  </td>
+                </tr>
+              </table>
 
-  </body>
-  </html>
+            </body>
+            </html>
